@@ -1,0 +1,31 @@
+[package]
+name = "tower-circuitbreaker"
+version = "0.1.0"
+edition = "2024"
+description = "A circuit breaker middleware for Tower services"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/joshrotenberg/tower-circuitbreaker"
+documentation = "https://docs.rs/tower-circuitbreaker"
+readme = "README.md"
+keywords = ["tower", "middleware", "resilience", "circuit-breaker"]
+categories = ["asynchronous", "web-programming"]
+
+[dependencies]
+futures = "0.3"
+tokio = { version = "1", features = ["time", "sync"] }
+tower = { version = "0.5", features = ["util"] }
+thiserror = "2.0"
+
+# Optional features
+tracing = { version = "*", optional = true }
+metrics = { version = "0.24", optional = true }
+metrics-util = "0.19"
+tracing-subscriber = "0.3"
+
+[features]
+default = []
+metrics = ["dep:metrics"]
+tracing = ["dep:tracing"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "time", "test-util"] }
