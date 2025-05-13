@@ -19,7 +19,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     // Build a circuit breaker layer with custom settings
-//!     let circuit_breaker_layer = circuit_breaker_builder::<_, ()>()
+//!     let circuit_breaker_layer = circuit_breaker_builder::<_, (), _>()
 //!         .failure_rate_threshold(0.3)
 //!         .sliding_window_size(50)
 //!         .wait_duration_in_open(Duration::from_secs(10))
@@ -76,6 +76,9 @@ mod layer;
 pub(crate) type FailureClassifier<Res, Err> = dyn Fn(&Result<Res, Err>) -> bool + Send + Sync;
 pub(crate) type SharedFailureClassifier<Res, Err> = Arc<FailureClassifier<Res, Err>>;
 
+pub(crate) type FallbackHandler<Req, Err> = dyn Fn(Req) -> Result<(), Err> + Send;
+// pub(crate) type SharedFallbackHandler<Res> = Arc<FallbackHandler<Res>>;
+
 #[cfg(feature = "tracing")]
 pub(crate) static DEFAULT_CIRCUIT_BREAKER_NAME: &str = "<unnamed>";
 
@@ -83,7 +86,7 @@ pub(crate) static DEFAULT_CIRCUIT_BREAKER_NAME: &str = "<unnamed>";
 static METRICS_INIT: Once = Once::new();
 
 /// Returns a new builder for a `CircuitBreakerLayer`.
-pub fn circuit_breaker_builder<Res, Err>() -> CircuitBreakerLayerBuilder<Res, Err> {
+pub fn circuit_breaker_builder<Req, Res, Err>() -> CircuitBreakerLayerBuilder<Req, Res, Err> {
     #[cfg(feature = "metrics")]
     {
         METRICS_INIT.call_once(|| {

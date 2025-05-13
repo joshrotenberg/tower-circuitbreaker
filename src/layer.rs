@@ -1,5 +1,5 @@
 use crate::config::CircuitBreakerConfig;
-use crate::{CircuitBreaker, SharedFailureClassifier};
+use crate::{CircuitBreaker, FallbackHandler, SharedFailureClassifier};
 use std::sync::Arc;
 use std::time::Duration;
 use tower::Layer;
@@ -35,17 +35,18 @@ impl<S, Res, Err> Layer<S> for CircuitBreakerLayer<Res, Err> {
 }
 
 /// Builder for configuring and constructing a `CircuitBreakerLayer`.
-pub struct CircuitBreakerLayerBuilder<Res, Err> {
+pub struct CircuitBreakerLayerBuilder<Req, Res, Err> {
     failure_rate_threshold: f64,
     sliding_window_size: usize,
     wait_duration_in_open: Duration,
     permitted_calls_in_half_open: usize,
     failure_classifier: SharedFailureClassifier<Res, Err>,
+    fallback_handler: FallbackHandler<Req, Err>,
     minimum_number_of_calls: Option<usize>,
     name: Option<String>,
 }
 
-impl<Res, Err> Default for CircuitBreakerLayerBuilder<Res, Err> {
+impl<Req, Res, Err> Default for CircuitBreakerLayerBuilder<Req, Res, Err> {
     fn default() -> Self {
         Self {
             failure_rate_threshold: 0.5,
@@ -53,6 +54,7 @@ impl<Res, Err> Default for CircuitBreakerLayerBuilder<Res, Err> {
             wait_duration_in_open: Duration::from_secs(30),
             permitted_calls_in_half_open: 1,
             failure_classifier: Arc::new(|res| res.is_err()),
+            fallback_handler: Arc::new(|_| Ok(())),
             minimum_number_of_calls: None,
             name: None,
         }
