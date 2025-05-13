@@ -32,6 +32,3 @@ impl<E> From<E> for CircuitBreakerError<E> {
         CircuitBreakerError::Inner(err)
     }
 }
-
-#[cfg(feature = "std")]
-impl<E> std::error::Error for CircuitBreakerError<E> where E: std::error::Error + 'static {}
