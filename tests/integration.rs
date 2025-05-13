@@ -161,7 +161,7 @@ async fn all_successes_keep_circuit_closed() {
         .build();
     let mut breaker = layer.layer(service);
 
-    for _ in 0..5 {
+    for _ in 0..99 {
         let _ = breaker.call(()).await;
     }
 
@@ -185,7 +185,13 @@ async fn does_not_trip_if_minimum_not_met() {
         let _ = breaker.call(()).await;
     }
 
+    // The circuit should still be closed
     assert_eq!(breaker.state().await, CircuitState::Closed);
+    // but another burst of calls should trigger the circuit
+    for _ in 0..5 {
+        let _ = breaker.call(()).await;
+    }
+    assert_eq!(breaker.state().await, CircuitState::Open);
 }
 
 #[tokio::test]
