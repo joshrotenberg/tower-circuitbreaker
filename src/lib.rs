@@ -50,6 +50,7 @@
 //! - `metrics`: enables metrics collection using the `metrics` crate.
 //! - `tracing`: enables logging and tracing using the `tracing` crate.
 
+use std::pin::Pin;
 use crate::circuit::Circuit;
 use crate::config::CircuitBreakerConfig;
 use crate::layer::CircuitBreakerLayerBuilder;
@@ -76,8 +77,7 @@ mod layer;
 pub(crate) type FailureClassifier<Res, Err> = dyn Fn(&Result<Res, Err>) -> bool + Send + Sync;
 pub(crate) type SharedFailureClassifier<Res, Err> = Arc<FailureClassifier<Res, Err>>;
 
-pub(crate) type FallbackHandler<Req, Err> = dyn Fn(Req) -> Result<(), Err> + Send;
-// pub(crate) type SharedFallbackHandler<Res> = Arc<FallbackHandler<Res>>;
+pub(crate) type BoxedFallback<Req, Res, Err> = Box<dyn Fn(Req) -> Pin<Box<dyn Future<Output = Result<Res, Err>> + Send>> + Send + Sync>;
 
 #[cfg(feature = "tracing")]
 pub(crate) static DEFAULT_CIRCUIT_BREAKER_NAME: &str = "<unnamed>";
@@ -110,15 +110,15 @@ pub fn circuit_breaker_builder<Req, Res, Err>() -> CircuitBreakerLayerBuilder<Re
 /// A Tower Service that applies circuit breaker logic to an inner service.
 ///
 /// Manages the circuit state and controls calls to the inner service accordingly.
-pub struct CircuitBreaker<S, Res, Err> {
+pub struct CircuitBreaker<S, Req, Res, Err> {
     inner: S,
     circuit: Arc<Mutex<Circuit>>,
-    config: Arc<CircuitBreakerConfig<Res, Err>>,
+    config: Arc<CircuitBreakerConfig<Req, Res, Err>>,
 }
 
-impl<S, Res, Err> CircuitBreaker<S, Res, Err> {
+impl<S, Req, Res, Err> CircuitBreaker<S, Req, Res, Err> {
     /// Creates a new `CircuitBreaker` wrapping the given service and configuration.
-    pub(crate) fn new(inner: S, config: Arc<CircuitBreakerConfig<Res, Err>>) -> Self {
+    pub(crate) fn new(inner: S, config: Arc<CircuitBreakerConfig<Req, Res, Err>>) -> Self {
         Self {
             inner,
             circuit: Arc::new(Mutex::new(Circuit::new())),
@@ -151,7 +151,7 @@ impl<S, Res, Err> CircuitBreaker<S, Res, Err> {
     }
 }
 
-impl<S, Req, Res, Err> Service<Req> for CircuitBreaker<S, Res, Err>
+impl<S, Req, Res, Err> Service<Req> for CircuitBreaker<S, Req, Res, Err>
 where
     S: Service<Req, Response = Res, Error = Err> + Clone + Send + 'static,
     S::Future: Send + 'static,
@@ -172,6 +172,9 @@ where
     fn call(&mut self, req: Req) -> Self::Future {
         let config = Arc::clone(&self.config);
         let circuit = Arc::clone(&self.circuit);
+        // let fallback = self.config.fallback_handler.as_ref();
+        let fallback = Arc::clone(&self.config.fallback_handler.unwrap());
+
         let mut inner = self.inner.clone();
 
         Box::pin(async move {
@@ -231,6 +234,10 @@ where
                     let counter = counter!("circuitbreaker_calls_total", "outcome" => "rejected");
                     counter.increment(1);
                 }
+                // Call fallback here with the request. Do we care what it returns?
+                // if let Some(fallback) = self.config.fallback_handler.as_ref() {
+                //     // return fallback(req).await;
+                // }
                 return Err(CircuitBreakerError::OpenCircuit);
             }
 
@@ -253,13 +260,14 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    fn dummy_config() -> CircuitBreakerConfig<(), ()> {
+    fn dummy_config() -> CircuitBreakerConfig<(), (), () > {
         CircuitBreakerConfig {
             failure_rate_threshold: 0.5,
             sliding_window_size: 10,
             wait_duration_in_open: Duration::from_secs(1),
             permitted_calls_in_half_open: 1,
             failure_classifier: Arc::new(|r| r.is_err()),
+            fallback_handler: None,
             minimum_number_of_calls: 10,
             #[cfg(feature = "tracing")]
             name: Some("test".into()),
