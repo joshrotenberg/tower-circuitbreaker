@@ -72,6 +72,7 @@ async fn main() {
         .sliding_window_size(20)          // Consider the last 20 calls
         .wait_duration_in_open(Duration::from_secs(5))  // Stay open for 5 seconds
         .permitted_calls_in_half_open(2)  // Allow 2 test calls when half-open
+        .minimum_number_of_calls(5)  // Don't evaluate failure rate until at least 5 calls 
         .build();
 
     let mut svc = ServiceBuilder::new()
@@ -195,6 +196,14 @@ tower-circuitbreaker = { version = "0.1", features = ["metrics", "tracing"] }
 This provides:
 - Metrics: counts of calls, transitions, and current state
 - Tracing: logs state transitions and call decisions
+
+When the metrics feature is enabled, the following metrics are emitted:
+
+| Metric Name | Type | Tags | Description |
+|-------------|------|------|-------------|
+| circuitbreaker_calls_total | Counter | outcome=success/failure/rejected | Total number of calls through the circuit breaker |
+| circuitbreaker_transitions_total | Counter | from=Closed/Open/HalfOpen, to=Closed/Open/HalfOpen | State transitions |
+| circuitbreaker_state | Gauge | state=Closed/Open/HalfOpen | Current state (1.0 = active) |
 
 ## Manual Control
 
