@@ -2,7 +2,7 @@
 
 Circuit breaker middleware for Tower services.
 
-[![Crates.io](https://img.shields.io/crates/v/tower-y-circuitbreaker.svg)](https://crates.io/crates/tower-circuitbreaker)
+[![Crates.io](https://img.shields.io/crates/v/tower-circuitbreaker.svg)](https://crates.io/crates/tower-circuitbreaker)
 [![Docs.rs](https://docs.rs/tower-circuitbreaker/badge.svg)](https://docs.rs/tower-circuitbreaker)
 
 ## Installation
