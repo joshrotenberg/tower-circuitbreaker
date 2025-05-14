@@ -1,5 +1,7 @@
 use crate::config::CircuitBreakerConfig;
 use crate::{BoxedFallback, CircuitBreaker, SharedFailureClassifier};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tower::Layer;
@@ -104,6 +106,18 @@ impl<Req, Res, Err> CircuitBreakerLayerBuilder<Req, Res, Err> {
     /// Give this breaker a human-readable name for logs/spans.
     pub fn name<N: Into<String>>(mut self, n: N) -> Self {
         self.name = Some(n.into());
+        self
+    }
+
+    /// Sets a fallback handler function to be called when the circuit is open.
+    ///
+    /// The fallback handler receives the original request and should return a future
+    /// that resolves to a Result with the same types as the inner service.
+    pub fn fallback_handler<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(Req) -> Pin<Box<dyn Future<Output = Result<Res, Err>> + Send>> + Send + Sync + 'static,
+    {
+        self.fallback_handler = Some(Box::new(handler));
         self
     }
 

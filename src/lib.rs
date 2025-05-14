@@ -172,8 +172,7 @@ where
     fn call(&mut self, req: Req) -> Self::Future {
         let config = Arc::clone(&self.config);
         let circuit = Arc::clone(&self.circuit);
-        // let fallback = self.config.fallback_handler.as_ref();
-        let fallback = Arc::clone(&self.config.fallback_handler.unwrap());
+        let fallback = config.fallback_handler.clone();
 
         let mut inner = self.inner.clone();
 
@@ -234,11 +233,13 @@ where
                     let counter = counter!("circuitbreaker_calls_total", "outcome" => "rejected");
                     counter.increment(1);
                 }
-                // Call fallback here with the request. Do we care what it returns?
-                // if let Some(fallback) = self.config.fallback_handler.as_ref() {
-                //     // return fallback(req).await;
-                // }
-                return Err(CircuitBreakerError::OpenCircuit);
+
+                // Use fallback if available, otherwise return circuit open error
+                if let Some(fallback_fn) = fallback {
+                    return fallback_fn(req).await.map_err(CircuitBreakerError::Inner);
+                } else {
+                    return Err(CircuitBreakerError::OpenCircuit);
+                }
             }
 
             let result = inner.call(req).await;
