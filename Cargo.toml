@@ -29,3 +29,5 @@ tracing = ["dep:tracing"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "time", "test-util"] }
+wiremock = "0.5"
+reqwest = { version = "0.11", features = ["json"] }

@@ -149,6 +149,40 @@ async fn main() {
 }
 ```
 
+## Example Applications
+
+The repository includes runnable examples that demonstrate different use cases for the circuit breaker:
+
+### Simple Example
+
+A basic example showing circuit breaker state transitions with a simple boolean service:
+
+```bash
+# Run the simple example
+cargo run --example simple
+
+# With tracing enabled
+RUST_LOG=debug cargo run --example simple --features tracing
+```
+
+### HTTP Client Example
+
+A more realistic example showing how to use the circuit breaker with an HTTP client:
+
+```bash
+# Run the HTTP client example
+cargo run --example http_client
+
+# With tracing enabled
+RUST_LOG=debug cargo run --example http_client --features tracing
+```
+
+This example demonstrates:
+- Using the circuit breaker with a reqwest HTTP client
+- Setting up a mock server for testing
+- Handling HTTP errors with the circuit breaker
+- Observing state transitions in a realistic scenario
+
 ## Customization
 
 ### Failure Classification
