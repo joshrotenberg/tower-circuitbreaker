@@ -1,3 +1,47 @@
+//! # DEPRECATED: Use `tower-resilience` instead
+//!
+//! This crate has been superseded by [`tower-resilience`](https://crates.io/crates/tower-resilience),
+//! which provides a comprehensive suite of resilience patterns including circuit breakers,
+//! bulkheads, retries, time limiters, caching, and rate limiting.
+//!
+//! ## Migration
+//!
+//! **Old (tower-circuitbreaker):**
+//! ```toml
+//! [dependencies]
+//! tower-circuitbreaker = "0.1"
+//! ```
+//!
+//! **New (tower-resilience):**
+//! ```toml
+//! [dependencies]
+//! tower-resilience = "0.2"
+//! # Or use the individual crate:
+//! tower-resilience-circuitbreaker = "0.3"
+//! ```
+//!
+//! **API Changes:**
+//! ```rust,ignore
+//! // Old API
+//! use tower_circuitbreaker::circuit_breaker_builder;
+//! let cb = circuit_breaker_builder::<String, ()>()
+//!     .failure_rate_threshold(0.5)
+//!     .build();
+//!
+//! // New API
+//! use tower_resilience::circuitbreaker::CircuitBreakerLayer;
+//! let cb = CircuitBreakerLayer::<String, ()>::builder()
+//!     .failure_rate_threshold(0.5)
+//!     .build();
+//! ```
+//!
+//! For more information, see:
+//! - Repository: <https://github.com/joshrotenberg/tower-resilience>
+//! - Documentation: <https://docs.rs/tower-resilience>
+//!
+//! ---
+//!
+//! ## Original Documentation
 //!
 //! A Tower middleware implementing circuit breaker behavior to improve the resilience of asynchronous services.
 //!

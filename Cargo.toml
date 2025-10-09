@@ -1,14 +1,17 @@
 [package]
 name = "tower-circuitbreaker"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
-description = "A circuit breaker middleware for Tower services"
+description = "DEPRECATED: Use tower-resilience instead - A circuit breaker middleware for Tower services"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/joshrotenberg/tower-circuitbreaker"
 documentation = "https://docs.rs/tower-circuitbreaker"
 readme = "README.md"
 keywords = ["tower", "middleware", "resilience", "circuit-breaker"]
 categories = ["asynchronous", "web-programming"]
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 futures = "0.3"
