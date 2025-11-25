@@ -1,5 +1,7 @@
 use crate::config::CircuitBreakerConfig;
-use crate::{CircuitBreaker, SharedFailureClassifier};
+use crate::{BoxedFallback, CircuitBreaker, SharedFailureClassifier};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tower::Layer;
@@ -8,26 +10,26 @@ use tower::Layer;
 ///
 /// Wraps an inner service and manages its state according to circuit breaker logic.
 #[derive(Clone)]
-pub struct CircuitBreakerLayer<Res, Err> {
-    config: Arc<CircuitBreakerConfig<Res, Err>>,
+pub struct CircuitBreakerLayer<Req, Res, Err> {
+    config: Arc<CircuitBreakerConfig<Req, Res, Err>>,
 }
 
-impl<Res, Err> CircuitBreakerLayer<Res, Err> {
+impl<Req, Res, Err> CircuitBreakerLayer<Req, Res, Err> {
     /// Creates a new `CircuitBreakerLayer` from the given configuration.
-    pub(crate) fn new(config: impl Into<Arc<CircuitBreakerConfig<Res, Err>>>) -> Self {
+    pub(crate) fn new(config: impl Into<Arc<CircuitBreakerConfig<Req, Res, Err>>>) -> Self {
         Self {
             config: config.into(),
         }
     }
 
     /// Wraps the given service with the circuit breaker middleware.
-    pub fn layer<S>(&self, service: S) -> CircuitBreaker<S, Res, Err> {
+    pub fn layer<S>(&self, service: S) -> CircuitBreaker<S, Req,Res, Err> {
         CircuitBreaker::new(service, self.config.clone())
     }
 }
 
-impl<S, Res, Err> Layer<S> for CircuitBreakerLayer<Res, Err> {
-    type Service = CircuitBreaker<S, Res, Err>;
+impl<S, Req, Res, Err> Layer<S> for CircuitBreakerLayer<Req, Res, Err> {
+    type Service = CircuitBreaker<S, Req, Res, Err>;
 
     fn layer(&self, inner: S) -> Self::Service {
         self.layer(inner)
@@ -35,17 +37,18 @@ impl<S, Res, Err> Layer<S> for CircuitBreakerLayer<Res, Err> {
 }
 
 /// Builder for configuring and constructing a `CircuitBreakerLayer`.
-pub struct CircuitBreakerLayerBuilder<Res, Err> {
+pub struct CircuitBreakerLayerBuilder<Req, Res, Err> {
     failure_rate_threshold: f64,
     sliding_window_size: usize,
     wait_duration_in_open: Duration,
     permitted_calls_in_half_open: usize,
     failure_classifier: SharedFailureClassifier<Res, Err>,
+    fallback_handler: Option<BoxedFallback<Req, Res, Err>>,
     minimum_number_of_calls: Option<usize>,
     name: Option<String>,
 }
 
-impl<Res, Err> Default for CircuitBreakerLayerBuilder<Res, Err> {
+impl<Req, Res, Err> Default for CircuitBreakerLayerBuilder<Req, Res, Err> {
     fn default() -> Self {
         Self {
             failure_rate_threshold: 0.5,
@@ -53,13 +56,14 @@ impl<Res, Err> Default for CircuitBreakerLayerBuilder<Res, Err> {
             wait_duration_in_open: Duration::from_secs(30),
             permitted_calls_in_half_open: 1,
             failure_classifier: Arc::new(|res| res.is_err()),
+            fallback_handler: None,
             minimum_number_of_calls: None,
             name: None,
         }
     }
 }
 
-impl<Res, Err> CircuitBreakerLayerBuilder<Res, Err> {
+impl<Req, Res, Err> CircuitBreakerLayerBuilder<Req, Res, Err> {
     /// Sets the failure rate threshold at which the circuit will open.
     pub fn failure_rate_threshold(mut self, rate: f64) -> Self {
         self.failure_rate_threshold = rate;
@@ -105,14 +109,27 @@ impl<Res, Err> CircuitBreakerLayerBuilder<Res, Err> {
         self
     }
 
+    /// Sets a fallback handler function to be called when the circuit is open.
+    ///
+    /// The fallback handler receives the original request and should return a future
+    /// that resolves to a Result with the same types as the inner service.
+    pub fn fallback_handler<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(Req) -> Pin<Box<dyn Future<Output = Result<Res, Err>> + Send>> + Send + Sync + 'static,
+    {
+        self.fallback_handler = Some(Box::new(handler));
+        self
+    }
+
     /// Builds the `CircuitBreakerLayer` with the configured parameters.
-    pub fn build(self) -> CircuitBreakerLayer<Res, Err> {
+    pub fn build(self) -> CircuitBreakerLayer<Req, Res, Err> {
         let config = CircuitBreakerConfig {
             failure_rate_threshold: self.failure_rate_threshold,
             sliding_window_size: self.sliding_window_size,
             wait_duration_in_open: self.wait_duration_in_open,
             permitted_calls_in_half_open: self.permitted_calls_in_half_open,
             failure_classifier: self.failure_classifier,
+            fallback_handler: self.fallback_handler,
             minimum_number_of_calls: self
                 .minimum_number_of_calls
                 .unwrap_or(self.sliding_window_size),

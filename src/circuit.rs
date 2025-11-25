@@ -42,7 +42,7 @@ impl Circuit {
         self.state
     }
 
-    pub fn record_success(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized>) {
+    pub fn record_success(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized, impl Sized>) {
         self.success_count += 1;
         self.total_count += 1;
 
@@ -63,7 +63,7 @@ impl Circuit {
         }
     }
 
-    pub fn record_failure(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized>) {
+    pub fn record_failure(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized, impl Sized>) {
         self.failure_count += 1;
         self.total_count += 1;
 
@@ -82,7 +82,7 @@ impl Circuit {
         }
     }
 
-    pub fn try_acquire(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized>) -> bool {
+    pub fn try_acquire(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized, impl Sized>) -> bool {
         match self.state {
             CircuitState::Closed => true,
             CircuitState::Open => {
@@ -149,7 +149,7 @@ impl Circuit {
         self.total_count = 0;
     }
 
-    fn evaluate_window(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized>) {
+    fn evaluate_window(&mut self, config: &CircuitBreakerConfig<impl Sized, impl Sized, impl Sized>) {
         if self.total_count < config.minimum_number_of_calls {
             return;
         }
